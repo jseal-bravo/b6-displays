@@ -141,7 +141,8 @@
   .stations-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 24px;
+    grid-template-rows: 1fr 1fr;
+    gap: 20px;
     flex: 1;
     min-height: 0;
   }
@@ -429,13 +430,11 @@
       <div class="raw-section">
         <div class="raw-label">METAR</div>
         <div class="raw-text" id="metar-krxe">Fetching data...</div>
-        <div class="raw-label">TAF</div>
-        <div class="raw-text" id="taf-krxe">Fetching data...</div>
       </div>
     </div>
 
-    <!-- Live Traffic -->
-    <div class="station-panel" id="panel-traffic" style="padding:0; overflow:hidden;">
+    <!-- Live Traffic (spans both rows) -->
+    <div class="station-panel" id="panel-traffic" style="padding:0; overflow:hidden; grid-row: 1 / 3;">
       <div class="station-header" style="padding:16px 20px 10px; position:absolute; top:0; left:0; right:0; z-index:5; background:linear-gradient(180deg, rgba(10,25,41,0.95) 0%, rgba(10,25,41,0.7) 70%, transparent 100%);">
         <div>
           <div class="station-id">LIVE TRAFFIC</div>
@@ -449,11 +448,48 @@
         loading="lazy"
       ></iframe>
     </div>
+
+    <!-- KIDA -->
+    <div class="station-panel" id="panel-kida">
+      <div class="loading-overlay" id="loading-kida"><div class="spinner"></div></div>
+      <div class="station-header">
+        <div>
+          <div class="station-id">KIDA</div>
+          <div class="station-name">Idaho Falls, Idaho — Fanning Field</div>
+        </div>
+        <div class="flight-category cat-unknown" id="cat-kida">---</div>
+      </div>
+      <div class="metrics-grid" id="metrics-kida">
+        <div class="metric-card">
+          <div class="metric-label">Wind</div>
+          <div class="metric-value" id="wind-kida">---</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Visibility</div>
+          <div class="metric-value" id="vis-kida">---</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Ceiling</div>
+          <div class="metric-value" id="ceil-kida">---</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Temp / Dew</div>
+          <div class="metric-value" id="temp-kida">---</div>
+        </div>
+      </div>
+      <div class="obs-time" id="obs-kida"></div>
+      <div class="raw-section">
+        <div class="raw-label">METAR</div>
+        <div class="raw-text" id="metar-kida">Fetching data...</div>
+        <div class="raw-label">TAF</div>
+        <div class="raw-text" id="taf-kida">Fetching data...</div>
+      </div>
+    </div>
   </div>
 
   <!-- Footer -->
   <div class="footer">
-    <div class="footer-text">BRAVO 6 FLIGHT ACADEMY &bull; REXBURG (KRXE)</div>
+    <div class="footer-text">BRAVO 6 FLIGHT ACADEMY &bull; KRXE / KIDA</div>
     <div class="refresh-indicator" id="refresh-status">
       <div class="refresh-dot"></div>
       <span id="refresh-text">Auto-refresh every 5 min</span>
@@ -628,7 +664,8 @@
 
       // Raw text
       document.getElementById(`metar-${id}`).textContent = metarRaw || 'No METAR available';
-      document.getElementById(`taf-${id}`).textContent = tafRaw || 'No TAF available for this station';
+      const tafEl = document.getElementById(`taf-${id}`);
+      if (tafEl) tafEl.textContent = tafRaw || 'No TAF available for this station';
 
       // Obs time
       const obsMatch = metarRaw.match(/\d{6}Z/);
@@ -650,7 +687,7 @@
 
   // ── Init & Auto-refresh ──
   async function refreshAll() {
-    await updateStation('KRXE');
+    await Promise.all([updateStation('KRXE'), updateStation('KIDA')]);
     document.getElementById('refresh-text').textContent =
       `Last refresh: ${new Date().toISOString().slice(11,16)}Z · Next in 5 min`;
   }
