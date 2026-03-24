@@ -581,19 +581,18 @@
     return 'cat-' + cat.toLowerCase();
   }
 
-  // ── Fetch Weather Data ──
-  async function fetchWeather(station) {
-    const metarUrl = `https://aviationweather.gov/api/data/metar?ids=${station}&format=raw`;
-    const tafUrl = `https://aviationweather.gov/api/data/taf?ids=${station}&format=raw`;
+  // ── Fetch Weather Data (via Supabase proxy to avoid CORS) ──
+  const WEATHER_PROXY = 'https://jdaxaniygkvimcdnaurm.supabase.co/functions/v1/weather-proxy';
 
+  async function fetchWeather(station) {
     let metarRaw = '', tafRaw = '';
     try {
-      const [metarResp, tafResp] = await Promise.all([
-        fetch(metarUrl),
-        fetch(tafUrl)
-      ]);
-      if (metarResp.ok) metarRaw = (await metarResp.text()).trim();
-      if (tafResp.ok) tafRaw = (await tafResp.text()).trim();
+      const resp = await fetch(`${WEATHER_PROXY}?station=${station}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        metarRaw = (data.metar || '').trim();
+        tafRaw = (data.taf || '').trim();
+      }
     } catch (e) {
       console.error(`Error fetching ${station}:`, e);
     }
