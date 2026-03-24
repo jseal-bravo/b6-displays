@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bravo 6 Flight Academy — Welcome Board</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Source+Sans+3:wght@300;400;600;700&display=swap');
+
+  :root {
+    --navy: #0D2B4E; --navy-mid: #1C3F6D; --blue: #4A7BAE; --blue-light: #6B9FD4;
+    --red: #C8102E; --red-bright: #E31E24; --white: #F0F4F8; --gray-light: #D1DAE6;
+    --gray: #8899AA; --green: #2ECC71; --yellow: #F1C40F; --gold: #D4A017;
+    --bg-dark: #0A1929; --card-bg: rgba(28, 63, 109, 0.4); --card-border: rgba(74, 123, 174, 0.25);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Source Sans 3',sans-serif; background:var(--bg-dark); color:var(--white); min-height:100vh; overflow:hidden; position:relative; }
+  body.admin-mode { overflow:auto; }
+  body::before { content:''; position:fixed; inset:0; background: radial-gradient(ellipse at 15% 30%, rgba(200,16,46,0.08) 0%, transparent 50%), radial-gradient(ellipse at 85% 70%, rgba(74,123,174,0.1) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(28,63,109,0.12) 0%, transparent 70%); z-index:0; pointer-events:none; }
+
+  /* ═══ DISPLAY ═══ */
+  .board { position:relative; z-index:1; display:grid; grid-template-rows:auto 1fr auto; height:100vh; padding:20px 28px 12px; }
+  .header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:12px; border-bottom:2px solid var(--card-border); }
+  .header-left { display:flex; align-items:center; gap:18px; }
+  .logo-svg { width:190px; height:64px; }
+  .header-divider { width:2px; height:44px; background:var(--red); }
+  .welcome-text { font-family:'Oswald',sans-serif; }
+  .welcome-line1 { font-size:14px; font-weight:300; letter-spacing:6px; text-transform:uppercase; color:var(--gray); }
+  .welcome-line2 { font-size:32px; font-weight:700; letter-spacing:3px; text-transform:uppercase; line-height:1.1; }
+  .welcome-line2 span { color:var(--blue-light); }
+  .header-right { text-align:right; }
+  .local-time { font-family:'Oswald',sans-serif; font-size:40px; font-weight:600; letter-spacing:2px; line-height:1; }
+  .time-zone-label { font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--gray); font-weight:600; }
+  .date-line { font-size:14px; color:var(--gray-light); margin-top:3px; letter-spacing:1px; }
+  .content { display:grid; grid-template-columns:1fr 320px; gap:20px; min-height:0; }
+  .announcements-col { display:flex; flex-direction:column; gap:12px; min-height:0; }
+  .section-label { font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:4px; text-transform:uppercase; color:var(--blue-light); font-weight:600; display:flex; align-items:center; gap:10px; }
+  .section-label::after { content:''; flex:1; height:1px; background:var(--card-border); }
+  .carousel-container { position:relative; flex:1; min-height:0; }
+  .announcement-card { position:absolute; inset:0; background:var(--card-bg); border:1px solid var(--card-border); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-end; opacity:0; transform:translateY(20px); transition:opacity 0.6s ease, transform 0.6s ease; pointer-events:none; }
+  .announcement-card.active { opacity:1; transform:translateY(0); pointer-events:auto; }
+  .card-red-stripe { position:absolute; left:0; top:0; bottom:0; width:4px; background:linear-gradient(180deg,var(--red),var(--red-bright)); z-index:3; }
+  .card-image-wrap { position:absolute; inset:0; }
+  .card-image { width:100%; height:100%; object-fit:cover; opacity:0.35; }
+  .card-image-overlay { position:absolute; inset:0; background:linear-gradient(to top, rgba(10,25,41,0.95) 0%, rgba(10,25,41,0.6) 40%, rgba(10,25,41,0.2) 100%); }
+  .card-content { position:relative; z-index:2; padding:24px 28px; }
+  .card-badge { font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--red-bright); font-weight:600; margin-bottom:8px; }
+  .card-title { font-family:'Oswald',sans-serif; font-size:30px; font-weight:700; line-height:1.2; margin-bottom:12px; letter-spacing:1px; }
+  .card-body { font-size:18px; line-height:1.5; color:var(--gray-light); font-weight:300; }
+  .carousel-dots { display:flex; justify-content:center; gap:8px; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--card-border); transition:all 0.3s ease; }
+  .dot.active { background:var(--red); width:26px; border-radius:5px; }
+  .sidebar { display:flex; flex-direction:column; gap:12px; min-height:0; }
+  .stats-row { display:flex; gap:8px; }
+  .stat-card-sm { background:var(--card-bg); border:1px solid var(--card-border); border-radius:8px; padding:8px 12px; text-align:center; flex:1; }
+  .stat-number-sm { font-family:'Oswald',sans-serif; font-size:26px; font-weight:700; line-height:1; }
+  .stat-label-sm { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--gray); font-weight:600; margin-top:2px; }
+  .events-list { display:flex; flex-direction:column; gap:7px; overflow:hidden; }
+  .event-item { background:rgba(10,25,41,0.5); border:1px solid var(--card-border); border-radius:8px; padding:10px 12px; display:flex; gap:12px; align-items:center; }
+  .event-date-box { background:var(--red); border-radius:6px; padding:5px 9px; text-align:center; min-width:46px; }
+  .event-month { font-family:'Oswald',sans-serif; font-size:9px; letter-spacing:2px; text-transform:uppercase; font-weight:600; color:rgba(255,255,255,0.8); }
+  .event-day { font-family:'Oswald',sans-serif; font-size:22px; font-weight:700; line-height:1; }
+  .event-title { font-family:'Oswald',sans-serif; font-size:15px; font-weight:600; letter-spacing:0.5px; }
+  .event-detail { font-size:11px; color:var(--gray); margin-top:1px; }
+  .congrats-section { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+  .congrats-scroll-area { flex:1; overflow:hidden; position:relative; }
+  .congrats-track { display:flex; flex-direction:column; gap:10px; animation:congrats-scroll-up 30s linear infinite; }
+  .congrats-card { background:var(--card-bg); border:1px solid var(--card-border); border-radius:10px; padding:10px 12px; display:flex; gap:12px; align-items:center; flex-shrink:0; }
+  .congrats-photo { width:52px; height:52px; border-radius:50%; object-fit:cover; border:2px solid var(--gold); flex-shrink:0; background:var(--bg-dark); }
+  .congrats-photo-placeholder { width:52px; height:52px; border-radius:50%; border:2px solid var(--card-border); flex-shrink:0; background:rgba(10,25,41,0.6); display:flex; align-items:center; justify-content:center; font-family:'Oswald',sans-serif; font-size:18px; font-weight:700; color:var(--gray); }
+  .congrats-info { flex:1; min-width:0; }
+  .congrats-name { font-family:'Oswald',sans-serif; font-size:16px; font-weight:600; letter-spacing:0.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .congrats-milestone { font-size:12px; font-weight:600; letter-spacing:1px; margin-top:1px; }
+  .congrats-date { font-size:10px; color:var(--gray); margin-top:1px; }
+  .milestone-solo { color:var(--blue-light); }
+  .milestone-checkride { color:var(--green); }
+  .milestone-graduation { color:var(--gold); }
+  .congrats-icon { font-size:20px; flex-shrink:0; }
+  @keyframes congrats-scroll-up { 0% { transform:translateY(0); } 100% { transform:translateY(-50%); } }
+  .footer { display:flex; align-items:center; justify-content:space-between; margin-top:10px; padding-top:8px; border-top:1px solid var(--card-border); }
+  .footer-text { font-size:11px; color:var(--gray); letter-spacing:1px; }
+  .ticker-wrap { flex:1; margin:0 20px; overflow:hidden; height:20px; position:relative; }
+  .ticker-track { display:flex; position:absolute; white-space:nowrap; animation:ticker-scroll 45s linear infinite; }
+  .ticker-content { font-size:12px; color:var(--gray-light); letter-spacing:1px; padding-right:50px; }
+  @keyframes ticker-scroll { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
+  .admin-corner { position:fixed; bottom:4px; right:4px; width:24px; height:24px; cursor:pointer; opacity:0.03; z-index:100; }
+
+  /* ═══ LOGIN ═══ */
+  .login-wrap { position:relative; z-index:1; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  .login-card { background:var(--card-bg); border:1px solid var(--card-border); border-radius:16px; padding:40px; width:400px; backdrop-filter:blur(10px); text-align:center; }
+  .login-title { font-family:'Oswald',sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; margin:16px 0 8px; }
+  .login-sub { font-size:13px; color:var(--gray); margin-bottom:24px; }
+  .login-input { width:100%; background:rgba(10,25,41,0.6); border:1px solid rgba(74,123,174,0.3); border-radius:8px; padding:12px 16px; color:var(--white); font-size:15px; font-family:'Source Sans 3',sans-serif; outline:none; margin-bottom:12px; }
+  .login-input:focus { border-color:var(--blue); }
+  .login-btn { width:100%; font-family:'Oswald',sans-serif; font-size:16px; font-weight:600; letter-spacing:3px; text-transform:uppercase; background:var(--red); color:#fff; border:none; border-radius:8px; padding:14px; cursor:pointer; margin-top:8px; transition:background 0.2s; }
+  .login-btn:hover { background:var(--red-bright); }
+  .login-btn:disabled { opacity:0.5; cursor:not-allowed; }
+  .login-error { color:var(--red-bright); font-size:13px; margin-top:8px; }
+  .login-info { color:var(--gray); font-size:12px; margin-top:16px; }
+
+  /* ═══ ADMIN ═══ */
+  .admin-wrap { position:relative; z-index:1; }
+  .admin-header { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; border-bottom:2px solid var(--card-border); background:rgba(28,63,109,0.2); }
+  .admin-header-left { display:flex; align-items:center; gap:16px; }
+  .admin-header-title { font-family:'Oswald',sans-serif; font-size:22px; font-weight:700; letter-spacing:2px; }
+  .admin-header-sub { font-size:12px; letter-spacing:3px; color:var(--gray); text-transform:uppercase; }
+  .admin-header-right { display:flex; align-items:center; gap:12px; }
+  .admin-user-info { font-size:12px; color:var(--gray); text-align:right; }
+  .save-btn { font-family:'Oswald',sans-serif; font-size:14px; font-weight:600; letter-spacing:2px; text-transform:uppercase; background:var(--red); color:#fff; border:none; border-radius:6px; padding:10px 20px; cursor:pointer; transition:background 0.2s; }
+  .save-btn:hover { background:var(--red-bright); }
+  .save-btn.saved { background:var(--green); }
+  .logout-btn { font-family:'Oswald',sans-serif; font-size:12px; font-weight:500; letter-spacing:2px; text-transform:uppercase; background:transparent; color:var(--gray); border:1px solid var(--card-border); border-radius:6px; padding:8px 14px; cursor:pointer; }
+  .logout-btn:hover { color:var(--white); border-color:var(--blue); }
+  .admin-tabs { display:flex; gap:4px; padding:12px 24px 0; border-bottom:1px solid rgba(74,123,174,0.2); flex-wrap:wrap; }
+  .admin-tab { font-family:'Oswald',sans-serif; font-size:14px; font-weight:500; letter-spacing:2px; text-transform:uppercase; background:transparent; color:var(--gray); border:none; border-bottom:2px solid transparent; padding:10px 16px; cursor:pointer; transition:all 0.2s; }
+  .admin-tab:hover { color:var(--white); }
+  .admin-tab.active { color:var(--white); border-bottom-color:var(--red); }
+  .admin-body { padding:24px; max-width:900px; margin:0 auto; }
+  .admin-section-title { font-family:'Oswald',sans-serif; font-size:18px; font-weight:600; letter-spacing:2px; color:var(--blue-light); }
+  .admin-card { background:rgba(28,63,109,0.3); border:1px solid rgba(74,123,174,0.2); border-radius:10px; padding:16px; margin-bottom:12px; }
+  .admin-card-num { font-family:'Oswald',sans-serif; font-size:14px; font-weight:600; color:var(--gray); letter-spacing:1px; }
+  .admin-label { display:block; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--gray); font-weight:600; margin-bottom:4px; }
+  .admin-input { width:100%; background:rgba(10,25,41,0.6); border:1px solid rgba(74,123,174,0.3); border-radius:6px; padding:8px 12px; color:var(--white); font-size:14px; font-family:'Source Sans 3',sans-serif; outline:none; margin-bottom:8px; }
+  .admin-input:focus { border-color:var(--blue); }
+  .admin-textarea { resize:vertical; min-height:70px; }
+  .admin-select { width:100%; background:rgba(10,25,41,0.6); border:1px solid rgba(74,123,174,0.3); border-radius:6px; padding:8px 12px; color:var(--white); font-size:14px; font-family:'Source Sans 3',sans-serif; outline:none; margin-bottom:8px; }
+  .admin-field-row { display:flex; gap:12px; }
+  .admin-field-half { flex:0 0 180px; }
+  .admin-field-full { flex:1; }
+  .admin-field-third { flex:0 0 140px; }
+  .admin-add-btn { font-family:'Oswald',sans-serif; font-size:13px; font-weight:500; letter-spacing:2px; background:rgba(74,123,174,0.2); color:var(--blue-light); border:1px solid rgba(74,123,174,0.3); border-radius:6px; padding:8px 16px; cursor:pointer; }
+  .admin-add-btn:hover { background:rgba(74,123,174,0.35); }
+  .admin-sm-btn { font-size:12px; background:transparent; color:var(--gray); border:1px solid rgba(74,123,174,0.3); border-radius:4px; padding:4px 10px; cursor:pointer; letter-spacing:1px; }
+  .admin-sm-btn:hover { color:var(--white); border-color:var(--blue); }
+  .admin-sm-btn.danger { color:var(--red-bright); border-color:var(--red-bright); }
+  .admin-sm-btn.danger:hover { background:rgba(200,16,46,0.15); }
+  .img-preview { margin-top:8px; border-radius:8px; overflow:hidden; height:120px; background:var(--bg-dark); }
+  .img-preview img { width:100%; height:100%; object-fit:cover; opacity:0.85; }
+  .img-preview-sm { margin-top:4px; width:52px; height:52px; border-radius:50%; overflow:hidden; background:var(--bg-dark); border:2px solid var(--gold); }
+  .img-preview-sm img { width:100%; height:100%; object-fit:cover; }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+  .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .stats-edit-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .event-edit-row { display:flex; gap:12px; align-items:flex-start; }
+  .event-field-sm { flex:0 0 65px; }
+  .event-field-md { flex:1; }
+  .ticker-edit-row { display:flex; gap:12px; align-items:center; }
+  .ticker-num { color:var(--gray); font-family:'Oswald',sans-serif; font-size:14px; width:24px; text-align:center; }
+  .toast { position:fixed; top:20px; right:20px; padding:12px 20px; border-radius:8px; font-size:14px; font-weight:600; z-index:9999; transition:opacity 0.3s; }
+  .toast-success { background:var(--green); color:#fff; }
+  .toast-error { background:var(--red); color:#fff; }
+  .saving-indicator { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; }
+  .saving-indicator.active { background:var(--yellow); animation:pulse 1s infinite; }
+  .saving-indicator.saved { background:var(--green); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+</style>
+</head>
+<body>
+
+<!-- ═══ DISPLAY ═══ -->
+<div class="board" id="display-mode" style="display:none">
+  <div class="header">
+    <div class="header-left">
+      <svg class="logo-svg" viewBox="0 0 220 70" xmlns="http://www.w3.org/2000/svg"><polygon points="15,5 35,35 15,65" fill="#C8102E"/><polygon points="20,35 50,5 50,65" fill="#0D2B4E"/><text x="60" y="30" font-family="Oswald,sans-serif" font-weight="700" font-size="22" fill="#1C3F6D" letter-spacing="2">BRAVO 6</text><text x="60" y="50" font-family="Oswald,sans-serif" font-weight="500" font-size="11" fill="#C8102E" letter-spacing="3">FLIGHT ACADEMY</text></svg>
+      <div class="header-divider"></div>
+      <div class="welcome-text"><div class="welcome-line1">Welcome To</div><div class="welcome-line2">Bravo 6 <span>Flight Academy</span></div></div>
+    </div>
+    <div class="header-right">
+      <div class="local-time" id="local-time">00:00</div>
+      <div class="time-zone-label">Mountain Time</div>
+      <div class="date-line" id="date-line"></div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="announcements-col">
+      <div class="section-label">Announcements</div>
+      <div class="carousel-container" id="carousel-container"></div>
+      <div class="carousel-dots" id="carousel-dots"></div>
+    </div>
+    <div class="sidebar">
+      <div class="section-label">By The Numbers</div>
+      <div class="stats-row" id="stats-row"></div>
+      <div class="section-label">Upcoming Events</div>
+      <div class="events-list" id="events-list"></div>
+      <div class="section-label" style="margin-top:4px"><span>&#127942; Congratulations</span><div style="flex:1;height:1px;background:var(--card-border)"></div></div>
+      <div class="congrats-section"><div class="congrats-scroll-area"><div class="congrats-track" id="congrats-track"></div></div></div>
+    </div>
+  </div>
+  <div class="footer">
+    <div class="footer-text">REXBURG (KRXE) &bull; POCATELLO (KPIH)</div>
+    <div class="ticker-wrap"><div class="ticker-track" id="ticker-track"></div></div>
+    <div class="footer-text">Bravo6FlightAcademy.com</div>
+  </div>
+  <div class="admin-corner" id="admin-corner"></div>
+</div>
+
+<!-- ═══ LOGIN ═══ -->
+<div class="login-wrap" id="login-mode" style="display:none">
+  <div class="login-card">
+    <svg style="width:160px;height:55px;margin:0 auto" viewBox="0 0 220 70" xmlns="http://www.w3.org/2000/svg"><polygon points="15,5 35,35 15,65" fill="#C8102E"/><polygon points="20,35 50,5 50,65" fill="#0D2B4E"/><text x="60" y="30" font-family="Oswald,sans-serif" font-weight="700" font-size="22" fill="#1C3F6D" letter-spacing="2">BRAVO 6</text><text x="60" y="50" font-family="Oswald,sans-serif" font-weight="500" font-size="11" fill="#C8102E" letter-spacing="3">FLIGHT ACADEMY</text></svg>
+    <div class="login-title">DISPLAY ADMIN</div>
+    <div class="login-sub">Sign in to manage your TV display boards</div>
+    <input class="login-input" id="login-email" type="email" placeholder="Email address" autocomplete="email">
+    <input class="login-input" id="login-password" type="password" placeholder="Password" autocomplete="current-password">
+    <button class="login-btn" id="login-btn" onclick="handleLogin()">SIGN IN</button>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-info">Contact John for an admin account</div>
+  </div>
+</div>
+
+<!-- ═══ ADMIN ═══ -->
+<div class="admin-wrap" id="admin-mode" style="display:none">
+  <div class="admin-header">
+    <div class="admin-header-left">
+      <svg style="width:140px;height:48px" viewBox="0 0 220 70" xmlns="http://www.w3.org/2000/svg"><polygon points="15,5 35,35 15,65" fill="#C8102E"/><polygon points="20,35 50,5 50,65" fill="#0D2B4E"/><text x="60" y="30" font-family="Oswald,sans-serif" font-weight="700" font-size="22" fill="#1C3F6D" letter-spacing="2">BRAVO 6</text><text x="60" y="50" font-family="Oswald,sans-serif" font-weight="500" font-size="11" fill="#C8102E" letter-spacing="3">FLIGHT ACADEMY</text></svg>
+      <div style="width:2px;height:32px;background:#C8102E"></div>
+      <div><div class="admin-header-title">DISPLAY ADMIN</div><div class="admin-header-sub" id="admin-user-email"></div></div>
+    </div>
+    <div class="admin-header-right">
+      <div id="save-status"></div>
+      <button class="save-btn" id="save-btn" onclick="handleSaveAll()">SAVE ALL</button>
+      <button class="logout-btn" onclick="handleLogout()">LOGOUT</button>
+    </div>
+  </div>
+  <div class="admin-tabs" id="admin-tabs">
+    <button class="admin-tab active" data-tab="tab-announcements">Announcements</button>
+    <button class="admin-tab" data-tab="tab-congrats">Congrats</button>
+    <button class="admin-tab" data-tab="tab-events">Events</button>
+    <button class="admin-tab" data-tab="tab-stats">Stats</button>
+    <button class="admin-tab" data-tab="tab-ticker">Ticker</button>
+    <button class="admin-tab" data-tab="tab-users">Users</button>
+  </div>
+  <div class="admin-body">
+    <div class="tab-content active" id="tab-announcements"></div>
+    <div class="tab-content" id="tab-congrats"></div>
+    <div class="tab-content" id="tab-events"></div>
+    <div class="tab-content" id="tab-stats"></div>
+    <div class="tab-content" id="tab-ticker"></div>
+    <div class="tab-content" id="tab-users"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// SUPABASE CONFIG
+// ═══════════════════════════════════════════════════
+const SUPABASE_URL = 'https://jdaxaniygkvimcdnaurm.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkYXhhbml5Z2t2aW1jZG5hdXJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NTU5MTUsImV4cCI6MjA4OTAzMTkxNX0.kUVmGiuGrx_d7HfqTQoLp8nodpqG9oQ-_-GL9D-GKGU';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let isOwner = false;
+let boardData = { announcements:[], congrats:[], events:[], stats:[], ticker:[] };
+let currentSlide = 0;
+let carouselInterval = null;
+
+const MILESTONE_MAP = {
+  solo: { label:'FIRST SOLO', cls:'milestone-solo', icon:'&#9992;&#65039;' },
+  checkride: { label:'CHECKRIDE PASSED', cls:'milestone-checkride', icon:'&#9989;' },
+  graduation: { label:'GRADUATED', cls:'milestone-graduation', icon:'&#127942;' },
+};
+
+function escHtml(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+function getInitials(name) { return (name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+function showToast(msg, type='success') {
+  const t=document.createElement('div'); t.className='toast toast-'+type; t.textContent=msg;
+  document.body.appendChild(t); setTimeout(()=>t.style.opacity='0',2000); setTimeout(()=>t.remove(),2500);
+}
+
+// ═══ CLOCK ═══
+function updateClock() {
+  const now=new Date();
+  const el=document.getElementById('local-time'); if(el) el.textContent=now.toLocaleTimeString('en-US',{timeZone:'America/Boise',hour:'2-digit',minute:'2-digit',hour12:true});
+  const dl=document.getElementById('date-line'); if(dl) dl.textContent=now.toLocaleDateString('en-US',{timeZone:'America/Boise',weekday:'long',month:'long',day:'numeric',year:'numeric'});
+}
+setInterval(updateClock,1000); updateClock();
+
+// ═══ DATA FETCHING ═══
+async function fetchAllData() {
+  const [a,c,e,s,t] = await Promise.all([
+    sb.from('display_announcements').select('*').eq('is_active',true).order('sort_order'),
+    sb.from('display_congrats').select('*').eq('is_active',true).order('sort_order'),
+    sb.from('display_events').select('*').eq('is_active',true).order('sort_order'),
+    sb.from('display_stats').select('*').eq('is_active',true).order('sort_order'),
+    sb.from('display_ticker').select('*').eq('is_active',true).order('sort_order'),
+  ]);
+  boardData = {
+    announcements: a.data||[], congrats: c.data||[],
+    events: e.data||[], stats: s.data||[], ticker: t.data||[]
+  };
+}
+
+// ═══ DISPLAY RENDER ═══
+function renderDisplay() {
+  const d=boardData;
+  const container=document.getElementById('carousel-container'), dots=document.getElementById('carousel-dots');
+  if(!container) return;
+  container.innerHTML=''; dots.innerHTML='';
+  (d.announcements||[]).forEach((a,i)=>{
+    const card=document.createElement('div'); card.className='announcement-card'+(i===0?' active':'');
+    card.innerHTML=`<div class="card-red-stripe"></div>${a.image_url?`<div class="card-image-wrap"><img class="card-image" src="${escHtml(a.image_url)}" alt="" onerror="this.style.display='none'"><div class="card-image-overlay"></div></div>`:''}<div class="card-content"><div class="card-badge">${escHtml(a.badge)}</div><div class="card-title">${escHtml(a.title)}</div><div class="card-body">${escHtml(a.body)}</div></div>`;
+    container.appendChild(card);
+    const dot=document.createElement('div'); dot.className='dot'+(i===0?' active':''); dots.appendChild(dot);
+  });
+  currentSlide=0; clearInterval(carouselInterval);
+  if(d.announcements&&d.announcements.length>1) carouselInterval=setInterval(()=>{ currentSlide=(currentSlide+1)%d.announcements.length; container.querySelectorAll('.announcement-card').forEach((c,i)=>c.classList.toggle('active',i===currentSlide)); dots.querySelectorAll('.dot').forEach((dd,i)=>dd.classList.toggle('active',i===currentSlide)); },8000);
+
+  document.getElementById('stats-row').innerHTML=(d.stats||[]).map(s=>`<div class="stat-card-sm"><div class="stat-number-sm">${escHtml(s.number)}</div><div class="stat-label-sm">${escHtml(s.label)}</div></div>`).join('');
+  document.getElementById('events-list').innerHTML=(d.events||[]).map(e=>`<div class="event-item"><div class="event-date-box"><div class="event-month">${escHtml(e.month)}</div><div class="event-day">${escHtml(e.day)}</div></div><div><div class="event-title">${escHtml(e.title)}</div><div class="event-detail">${escHtml(e.detail)}</div></div></div>`).join('');
+
+  const congratsTrack=document.getElementById('congrats-track');
+  const items=d.congrats||[];
+  const renderCards=arr=>arr.map(c=>{const m=MILESTONE_MAP[c.milestone]||MILESTONE_MAP.solo;const ph=c.photo_url?`<img class="congrats-photo" src="${escHtml(c.photo_url)}" alt="" onerror="this.outerHTML='<div class=congrats-photo-placeholder>${getInitials(c.student_name)}</div>'">`:`<div class="congrats-photo-placeholder">${getInitials(c.student_name)}</div>`;return`<div class="congrats-card">${ph}<div class="congrats-info"><div class="congrats-name">${escHtml(c.student_name)}</div><div class="congrats-milestone ${m.cls}">${m.label}${c.detail?' — '+escHtml(c.detail):''}</div><div class="congrats-date">${escHtml(c.milestone_date)}</div></div><div class="congrats-icon">${m.icon}</div></div>`;}).join('');
+  congratsTrack.innerHTML=renderCards(items)+renderCards(items);
+  congratsTrack.style.animationDuration=Math.max(15,items.length*5)+'s';
+
+  const tickerHTML=(d.ticker||[]).map(m=>`<span class="ticker-content">&bull; ${escHtml(m.message)}</span>`).join('');
+  document.getElementById('ticker-track').innerHTML=tickerHTML+tickerHTML;
+}
+
+// ═══ AUTH ═══
+async function handleLogin() {
+  const email=document.getElementById('login-email').value.trim();
+  const pw=document.getElementById('login-password').value;
+  const errEl=document.getElementById('login-error');
+  const btn=document.getElementById('login-btn');
+  errEl.textContent=''; btn.disabled=true; btn.textContent='SIGNING IN...';
+
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pw});
+  if(error){errEl.textContent=error.message;btn.disabled=false;btn.textContent='SIGN IN';return;}
+
+  // Check if user is a display admin
+  const {data:admin,error:adminErr}=await sb.from('display_admins').select('*').eq('user_id',data.user.id).single();
+  if(adminErr||!admin){errEl.textContent='You do not have display admin access. Contact John.';await sb.auth.signOut();btn.disabled=false;btn.textContent='SIGN IN';return;}
+
+  currentUser=data.user;
+  isOwner=admin.role==='owner';
+  showAdmin();
+}
+
+async function handleLogout() {
+  await sb.auth.signOut();
+  currentUser=null; isOwner=false;
+  showLogin();
+}
+
+// ═══ ADMIN CRUD ═══
+async function saveTable(table, items) {
+  // Upsert all items
+  for(const item of items) {
+    if(item._isNew) {
+      delete item._isNew;
+      const {error}=await sb.from(table).insert(item);
+      if(error) { showToast('Error saving: '+error.message,'error'); return false; }
+    } else {
+      const {error}=await sb.from(table).upsert(item);
+      if(error) { showToast('Error saving: '+error.message,'error'); return false; }
+    }
+  }
+  return true;
+}
+
+async function deleteRow(table, id) {
+  const {error}=await sb.from(table).delete().eq('id',id);
+  if(error) showToast('Error: '+error.message,'error');
+  return !error;
+}
+
+async function handleSaveAll() {
+  const btn=document.getElementById('save-btn');
+  btn.textContent='SAVING...';
+
+  const ok1=await saveTable('display_announcements',boardData.announcements);
+  const ok2=await saveTable('display_congrats',boardData.congrats);
+  const ok3=await saveTable('display_events',boardData.events);
+  const ok4=await saveTable('display_stats',boardData.stats);
+  const ok5=await saveTable('display_ticker',boardData.ticker);
+
+  if(ok1&&ok2&&ok3&&ok4&&ok5) {
+    btn.textContent='SAVED \u2713'; btn.classList.add('saved');
+    showToast('All changes saved — TVs will update within 30 seconds');
+    // Reload fresh data
+    await fetchAllData();
+    renderAllAdmin();
+  } else {
+    btn.textContent='ERROR';
+  }
+  setTimeout(()=>{btn.textContent='SAVE ALL';btn.classList.remove('saved');},2500);
+}
+
+// ═══ ADMIN RENDERERS ═══
+function renderAdminAnnouncements() {
+  const el=document.getElementById('tab-announcements'),items=boardData.announcements;
+  el.innerHTML=`<div class="top-bar"><div class="admin-section-title">Announcements (${items.length})</div><button class="admin-add-btn" onclick="addItem('announcements',{badge:'New',title:'',body:'',image_url:'',sort_order:${items.length+1},is_active:true})">+ Add</button></div>
+  ${items.map((a,i)=>`<div class="admin-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div class="admin-card-num">#${i+1}</div><div style="display:flex;gap:8px">
+    <button class="admin-sm-btn danger" onclick="removeItem('announcements',${i},'display_announcements','${a.id}')">Remove</button></div></div>
+    <div class="admin-field-row"><div class="admin-field-half"><label class="admin-label">Badge</label><input class="admin-input" value="${escHtml(a.badge)}" oninput="boardData.announcements[${i}].badge=this.value"></div>
+    <div class="admin-field-full"><label class="admin-label">Title</label><input class="admin-input" value="${escHtml(a.title)}" oninput="boardData.announcements[${i}].title=this.value"></div></div>
+    <label class="admin-label">Body</label><textarea class="admin-input admin-textarea" oninput="boardData.announcements[${i}].body=this.value">${escHtml(a.body)}</textarea>
+    <label class="admin-label">Image URL</label><input class="admin-input" value="${escHtml(a.image_url||'')}" oninput="boardData.announcements[${i}].image_url=this.value">
+    ${a.image_url?`<div class="img-preview"><img src="${escHtml(a.image_url)}" alt="" onerror="this.parentElement.innerHTML='<div style=padding:20px;color:#8899AA;text-align:center>Image failed to load</div>'"></div>`:''}
+  </div>`).join('')}`;
+}
+
+function renderAdminCongrats() {
+  const el=document.getElementById('tab-congrats'),items=boardData.congrats;
+  el.innerHTML=`<div class="top-bar"><div class="admin-section-title">Student Milestones (${items.length})</div><button class="admin-add-btn" onclick="addItem('congrats',{student_name:'',milestone:'solo',detail:'',milestone_date:'',photo_url:'',sort_order:0,is_active:true},'start')">+ Add Student</button></div>
+  <p style="color:var(--gray);font-size:13px;margin-bottom:16px">Add students who hit milestones. These scroll on the lobby TV.</p>
+  ${items.map((c,i)=>{const m=MILESTONE_MAP[c.milestone]||MILESTONE_MAP.solo;return`<div class="admin-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div class="admin-card-num">#${i+1} <span style="color:${c.milestone==='solo'?'var(--blue-light)':c.milestone==='graduation'?'var(--gold)':'var(--green)'};margin-left:8px">${m.icon} ${m.label}</span></div>
+    <button class="admin-sm-btn danger" onclick="removeItem('congrats',${i},'display_congrats','${c.id}')">Remove</button></div>
+    <div class="admin-field-row">
+      <div class="admin-field-full"><label class="admin-label">Student Name</label><input class="admin-input" value="${escHtml(c.student_name)}" oninput="boardData.congrats[${i}].student_name=this.value"></div>
+      <div class="admin-field-third"><label class="admin-label">Milestone</label><select class="admin-select" onchange="boardData.congrats[${i}].milestone=this.value;renderAdminCongrats()"><option value="solo" ${c.milestone==='solo'?'selected':''}>First Solo</option><option value="checkride" ${c.milestone==='checkride'?'selected':''}>Checkride Pass</option><option value="graduation" ${c.milestone==='graduation'?'selected':''}>Graduation</option></select></div>
+      <div class="admin-field-third"><label class="admin-label">Date</label><input class="admin-input" value="${escHtml(c.milestone_date)}" oninput="boardData.congrats[${i}].milestone_date=this.value" placeholder="Mar 5, 2026"></div>
+    </div>
+    <div class="admin-field-row">
+      <div class="admin-field-full"><label class="admin-label">Detail</label><input class="admin-input" value="${escHtml(c.detail||'')}" oninput="boardData.congrats[${i}].detail=this.value" placeholder="e.g. Instrument Rating"></div>
+      <div style="flex:0 0 200px"><label class="admin-label">Photo URL</label><input class="admin-input" value="${escHtml(c.photo_url||'')}" oninput="boardData.congrats[${i}].photo_url=this.value"></div>
+    </div></div>`;}).join('')}`;
+}
+
+function renderAdminEvents() {
+  const el=document.getElementById('tab-events'),items=boardData.events;
+  el.innerHTML=`<div class="top-bar"><div class="admin-section-title">Events (${items.length})</div><button class="admin-add-btn" onclick="addItem('events',{month:'JAN',day:'01',title:'',detail:'',sort_order:${items.length+1},is_active:true})">+ Add</button></div>
+  ${items.map((e,i)=>`<div class="admin-card"><div class="event-edit-row">
+    <div class="event-field-sm"><label class="admin-label">Mon</label><input class="admin-input" value="${escHtml(e.month)}" oninput="boardData.events[${i}].month=this.value" maxlength="3"></div>
+    <div class="event-field-sm"><label class="admin-label">Day</label><input class="admin-input" value="${escHtml(e.day)}" oninput="boardData.events[${i}].day=this.value" maxlength="2"></div>
+    <div class="event-field-md"><label class="admin-label">Event</label><input class="admin-input" value="${escHtml(e.title)}" oninput="boardData.events[${i}].title=this.value"></div>
+    <div class="event-field-md"><label class="admin-label">Details</label><input class="admin-input" value="${escHtml(e.detail)}" oninput="boardData.events[${i}].detail=this.value"></div>
+    <button class="admin-sm-btn danger" style="margin-top:22px" onclick="removeItem('events',${i},'display_events','${e.id}')">&#10005;</button>
+  </div></div>`).join('')}`;
+}
+
+function renderAdminStats() {
+  const el=document.getElementById('tab-stats'),items=boardData.stats;
+  el.innerHTML=`<div class="top-bar"><div class="admin-section-title">Stats (${items.length})</div><button class="admin-add-btn" onclick="addItem('stats',{number:'0',label:'New',sort_order:${items.length+1},is_active:true})">+ Add</button></div>
+  <div class="stats-edit-grid">${items.map((s,i)=>`<div class="admin-card"><div style="display:flex;gap:12px;align-items:flex-end">
+    <div style="flex:0 0 100px"><label class="admin-label">Number</label><input class="admin-input" style="font-family:Oswald;font-size:20px;text-align:center" value="${escHtml(s.number)}" oninput="boardData.stats[${i}].number=this.value"></div>
+    <div style="flex:1"><label class="admin-label">Label</label><input class="admin-input" value="${escHtml(s.label)}" oninput="boardData.stats[${i}].label=this.value"></div>
+    <button class="admin-sm-btn danger" onclick="removeItem('stats',${i},'display_stats','${s.id}')">&#10005;</button></div></div>`).join('')}</div>`;
+}
+
+function renderAdminTicker() {
+  const el=document.getElementById('tab-ticker'),items=boardData.ticker;
+  el.innerHTML=`<div class="top-bar"><div class="admin-section-title">Ticker (${items.length})</div><button class="admin-add-btn" onclick="addItem('ticker',{message:'',sort_order:${items.length+1},is_active:true})">+ Add</button></div>
+  ${items.map((m,i)=>`<div class="admin-card ticker-edit-row"><div class="ticker-num">${i+1}</div>
+    <input class="admin-input" style="flex:1;margin-bottom:0" value="${escHtml(m.message)}" oninput="boardData.ticker[${i}].message=this.value">
+    <button class="admin-sm-btn danger" onclick="removeItem('ticker',${i},'display_ticker','${m.id}')">&#10005;</button></div>`).join('')}`;
+}
+
+async function renderAdminUsers() {
+  const el=document.getElementById('tab-users');
+  if(!isOwner) {
+    el.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray)"><p style="font-size:16px">Only the account owner can manage users.</p></div>';
+    return;
+  }
+  const {data:admins}=await sb.from('display_admins').select('*').order('created_at');
+  el.innerHTML=`<div class="top-bar"><div class="admin-section-title">Display Admins (${(admins||[]).length})</div></div>
+  <p style="color:var(--gray);font-size:13px;margin-bottom:16px">Invite team members to manage the display boards. They'll log in with the email and temporary password you set below.</p>
+  ${(admins||[]).map(a=>`<div class="admin-card" style="display:flex;justify-content:space-between;align-items:center">
+    <div><div style="font-family:Oswald;font-size:16px;font-weight:600">${escHtml(a.name||'Unnamed')}</div>
+    <div style="font-size:12px;color:var(--gray)">${a.role.toUpperCase()}</div></div>
+    ${a.role!=='owner'?`<button class="admin-sm-btn danger" onclick="removeAdmin('${a.id}','${a.user_id}')">Remove</button>`:'<span style="color:var(--gold);font-size:12px;letter-spacing:2px">OWNER</span>'}
+  </div>`).join('')}
+  <div class="admin-card" style="border-style:dashed">
+    <div style="font-family:Oswald;font-size:14px;font-weight:600;color:var(--blue-light);margin-bottom:12px">INVITE NEW ADMIN</div>
+    <div class="admin-field-row">
+      <div class="admin-field-full"><label class="admin-label">Name</label><input class="admin-input" id="new-admin-name" placeholder="e.g. Chris"></div>
+      <div class="admin-field-full"><label class="admin-label">Email</label><input class="admin-input" id="new-admin-email" type="email" placeholder="chris@bravo6flightacademy.com"></div>
+    </div>
+    <div class="admin-field-row">
+      <div class="admin-field-full"><label class="admin-label">Temporary Password (they can change it later)</label><input class="admin-input" id="new-admin-pw" type="text" placeholder="Set a temporary password" value="Bravo6Temp!"></div>
+      <button class="admin-add-btn" style="margin-top:18px;white-space:nowrap" onclick="inviteAdmin()">Send Invite</button>
+    </div>
+    <div id="invite-status" style="margin-top:4px"></div>
+  </div>`;
+}
+
+async function inviteAdmin() {
+  const name=document.getElementById('new-admin-name').value.trim();
+  const email=document.getElementById('new-admin-email').value.trim();
+  const pw=document.getElementById('new-admin-pw').value;
+  const statusEl=document.getElementById('invite-status');
+  if(!email||!pw){showToast('Enter an email and password','error');return;}
+  if(pw.length<6){showToast('Password must be at least 6 characters','error');return;}
+
+  statusEl.innerHTML='<span style="color:var(--yellow);font-size:13px">Creating account...</span>';
+
+  const {data:{session}}=await sb.auth.getSession();
+  const resp=await fetch(SUPABASE_URL+'/functions/v1/invite-display-admin',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token,'apikey':SUPABASE_KEY},
+    body:JSON.stringify({email,name:name||'Team Member',temp_password:pw})
+  });
+  const result=await resp.json();
+
+  if(result.error){
+    statusEl.innerHTML=`<span style="color:var(--red-bright);font-size:13px">${escHtml(result.error)}</span>`;
+    return;
+  }
+
+  statusEl.innerHTML=`<span style="color:var(--green);font-size:13px">&#10003; ${escHtml(name||email)} has been added! They can log in at this URL with <strong>${escHtml(email)}</strong> and the temp password.</span>`;
+  showToast(name+' has been invited');
+  renderAdminUsers();
+}
+
+async function removeAdmin(id, userId) {
+  if(!confirm('Remove this person? This will delete their account and revoke access.'))return;
+
+  const {data:{session}}=await sb.auth.getSession();
+  const resp=await fetch(SUPABASE_URL+'/functions/v1/remove-display-admin',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token,'apikey':SUPABASE_KEY},
+    body:JSON.stringify({admin_id:id,user_id:userId})
+  });
+  const result=await resp.json();
+
+  if(result.error){showToast('Error: '+result.error,'error');return;}
+  showToast('Admin removed');
+  renderAdminUsers();
+}
+
+function addItem(key, defaults, position='end') {
+  const newItem={...defaults, _isNew:true, id:crypto.randomUUID()};
+  if(position==='start') boardData[key].unshift(newItem);
+  else boardData[key].push(newItem);
+  renderAllAdmin();
+}
+
+async function removeItem(key, index, table, id) {
+  if(!confirm('Remove this item?'))return;
+  const item=boardData[key][index];
+  if(!item._isNew) await deleteRow(table, id);
+  boardData[key].splice(index,1);
+  renderAllAdmin();
+}
+
+function renderAllAdmin() { renderAdminAnnouncements(); renderAdminCongrats(); renderAdminEvents(); renderAdminStats(); renderAdminTicker(); renderAdminUsers(); }
+
+// ═══ MODE SWITCHING ═══
+function showDisplay() {
+  document.getElementById('display-mode').style.display='grid';
+  document.getElementById('login-mode').style.display='none';
+  document.getElementById('admin-mode').style.display='none';
+  document.body.classList.remove('admin-mode');
+  renderDisplay();
+}
+
+function showLogin() {
+  document.getElementById('display-mode').style.display='none';
+  document.getElementById('login-mode').style.display='flex';
+  document.getElementById('admin-mode').style.display='none';
+  document.body.classList.add('admin-mode');
+}
+
+function showAdmin() {
+  document.getElementById('display-mode').style.display='none';
+  document.getElementById('login-mode').style.display='none';
+  document.getElementById('admin-mode').style.display='block';
+  document.body.classList.add('admin-mode');
+  document.getElementById('admin-user-email').textContent=currentUser?.email||'';
+  renderAllAdmin();
+}
+
+// Tab switching
+document.getElementById('admin-tabs').addEventListener('click',function(e){if(!e.target.classList.contains('admin-tab'))return;document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));e.target.classList.add('active');document.getElementById(e.target.dataset.tab).classList.add('active');});
+document.getElementById('admin-corner').addEventListener('click',()=>{
+  const params=new URLSearchParams(window.location.search);
+  params.set('admin','1');
+  window.location.search=params.toString();
+});
+
+// Login on enter key
+document.getElementById('login-password').addEventListener('keydown',e=>{if(e.key==='Enter')handleLogin();});
+
+// ═══ INIT ═══
+async function init() {
+  const isAdmin=new URLSearchParams(window.location.search).has('admin');
+
+  await fetchAllData();
+
+  if(isAdmin) {
+    // Check for existing session
+    const {data:{session}}=await sb.auth.getSession();
+    if(session) {
+      const {data:admin}=await sb.from('display_admins').select('*').eq('user_id',session.user.id).single();
+      if(admin) {
+        currentUser=session.user;
+        isOwner=admin.role==='owner';
+        showAdmin();
+        return;
+      }
+    }
+    showLogin();
+  } else {
+    showDisplay();
+    // Auto-refresh from Supabase every 30 seconds
+    setInterval(async()=>{await fetchAllData();renderDisplay();},30000);
+  }
+}
+init();
+</script>
+</body>
+</html>

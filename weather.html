@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bravo 6 Flight Academy — Weather Briefing</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;600;700&display=swap');
+
+  :root {
+    --navy: #0D2B4E;
+    --navy-mid: #1C3F6D;
+    --blue: #4A7BAE;
+    --blue-light: #6B9FD4;
+    --red: #C8102E;
+    --red-bright: #E31E24;
+    --white: #F0F4F8;
+    --gray-light: #D1DAE6;
+    --gray: #8899AA;
+    --green: #2ECC71;
+    --yellow: #F1C40F;
+    --orange: #E67E22;
+    --bg-dark: #0A1929;
+    --card-bg: rgba(28, 63, 109, 0.45);
+    --card-border: rgba(74, 123, 174, 0.25);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: var(--bg-dark);
+    color: var(--white);
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Subtle animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(74,123,174,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(200,16,46,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(28,63,109,0.15) 0%, transparent 60%);
+    z-index: 0;
+  }
+
+  .dashboard {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 24px 32px 16px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--card-border);
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .logo-container {
+    width: 180px;
+    height: 62px;
+    display: flex;
+    align-items: center;
+  }
+
+  .logo-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .header-divider {
+    width: 2px;
+    height: 44px;
+    background: var(--red);
+  }
+
+  .header-title {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--white);
+  }
+
+  .header-title span {
+    color: var(--blue-light);
+    font-weight: 400;
+  }
+
+  .header-right {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+
+  .clock {
+    font-family: 'Oswald', sans-serif;
+    font-size: 42px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    line-height: 1;
+    color: var(--white);
+  }
+
+  .clock-label {
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gray);
+    font-weight: 600;
+  }
+
+  .date-display {
+    font-size: 14px;
+    color: var(--gray);
+    letter-spacing: 1px;
+  }
+
+  /* Station Grid */
+  .stations-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .station-panel {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .station-panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--red), var(--red-bright), var(--red));
+  }
+
+  .station-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .station-id {
+    font-family: 'Oswald', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: var(--white);
+  }
+
+  .station-name {
+    font-size: 14px;
+    color: var(--gray);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .flight-category {
+    padding: 6px 18px;
+    border-radius: 6px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .cat-vfr { background: rgba(46,204,113,0.2); color: var(--green); border: 1px solid rgba(46,204,113,0.4); }
+  .cat-mvfr { background: rgba(74,123,174,0.3); color: var(--blue-light); border: 1px solid rgba(74,123,174,0.5); }
+  .cat-ifr { background: rgba(200,16,46,0.2); color: var(--red-bright); border: 1px solid rgba(200,16,46,0.4); }
+  .cat-lifr { background: rgba(156,39,176,0.2); color: #CE93D8; border: 1px solid rgba(156,39,176,0.4); }
+  .cat-unknown { background: rgba(136,153,170,0.2); color: var(--gray); border: 1px solid rgba(136,153,170,0.3); }
+
+  /* Weather metrics */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .metric-card {
+    background: rgba(10, 25, 41, 0.5);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+
+  .metric-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gray);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  .metric-value {
+    font-family: 'Oswald', sans-serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--white);
+    line-height: 1.1;
+  }
+
+  .metric-unit {
+    font-size: 13px;
+    color: var(--gray);
+    font-weight: 400;
+    font-family: 'Source Sans 3', sans-serif;
+  }
+
+  /* Wind display */
+  .wind-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .wind-arrow {
+    width: 28px;
+    height: 28px;
+    transition: transform 0.5s ease;
+  }
+
+  .wind-arrow svg {
+    fill: var(--blue-light);
+  }
+
+  /* Raw METAR/TAF */
+  .raw-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+  }
+
+  .raw-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--blue-light);
+    font-weight: 600;
+  }
+
+  .raw-text {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--gray-light);
+    background: rgba(10, 25, 41, 0.6);
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    word-wrap: break-word;
+    overflow-y: auto;
+  }
+
+  /* Footer */
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--card-border);
+  }
+
+  .footer-text {
+    font-size: 12px;
+    color: var(--gray);
+    letter-spacing: 1px;
+  }
+
+  .refresh-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--gray);
+  }
+
+  .refresh-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .status-stale .refresh-dot {
+    background: var(--yellow);
+  }
+
+  .status-error .refresh-dot {
+    background: var(--red);
+  }
+
+  /* Loading */
+  .loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 25, 41, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 12px;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--card-border);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Observation time */
+  .obs-time {
+    font-size: 11px;
+    color: var(--gray);
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+</style>
+</head>
+<body>
+<div class="dashboard">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo-container">
+        <!-- Inline SVG logo placeholder — replace src with your hosted logo URL -->
+        <svg viewBox="0 0 200 70" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="15,5 35,35 15,65" fill="#C8102E"/>
+          <polygon points="20,35 50,5 50,65" fill="#0D2B4E"/>
+          <text x="60" y="30" font-family="Oswald, sans-serif" font-weight="700" font-size="22" fill="#1C3F6D" letter-spacing="2">BRAVO 6</text>
+          <text x="60" y="50" font-family="Oswald, sans-serif" font-weight="500" font-size="11" fill="#C8102E" letter-spacing="3">FLIGHT ACADEMY</text>
+        </svg>
+      </div>
+      <div class="header-divider"></div>
+      <div class="header-title">Weather Briefing <span>Board</span></div>
+    </div>
+    <div class="header-right">
+      <div class="clock" id="clock">00:00:00</div>
+      <div class="clock-label">Zulu Time</div>
+      <div class="date-display" id="date-display"></div>
+    </div>
+  </div>
+
+  <!-- Station Panels -->
+  <div class="stations-grid">
+    <!-- KRXE -->
+    <div class="station-panel" id="panel-krxe">
+      <div class="loading-overlay" id="loading-krxe"><div class="spinner"></div></div>
+      <div class="station-header">
+        <div>
+          <div class="station-id">KRXE</div>
+          <div class="station-name">Rexburg, Idaho — Madison Co.</div>
+        </div>
+        <div class="flight-category cat-unknown" id="cat-krxe">---</div>
+      </div>
+      <div class="metrics-grid" id="metrics-krxe">
+        <div class="metric-card">
+          <div class="metric-label">Wind</div>
+          <div class="metric-value" id="wind-krxe">---</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Visibility</div>
+          <div class="metric-value" id="vis-krxe">---</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Ceiling</div>
+          <div class="metric-value" id="ceil-krxe">---</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Temp / Dew</div>
+          <div class="metric-value" id="temp-krxe">---</div>
+        </div>
+      </div>
+      <div class="obs-time" id="obs-krxe"></div>
+      <div class="raw-section">
+        <div class="raw-label">METAR</div>
+        <div class="raw-text" id="metar-krxe">Fetching data...</div>
+        <div class="raw-label">TAF</div>
+        <div class="raw-text" id="taf-krxe">Fetching data...</div>
+      </div>
+    </div>
+
+    <!-- Live Traffic -->
+    <div class="station-panel" id="panel-traffic" style="padding:0; overflow:hidden;">
+      <div class="station-header" style="padding:16px 20px 10px; position:absolute; top:0; left:0; right:0; z-index:5; background:linear-gradient(180deg, rgba(10,25,41,0.95) 0%, rgba(10,25,41,0.7) 70%, transparent 100%);">
+        <div>
+          <div class="station-id">LIVE TRAFFIC</div>
+          <div class="station-name">Rexburg Area — FlightRadar24</div>
+        </div>
+      </div>
+      <iframe
+        src="https://www.flightradar24.com/simple?lat=43.834&lon=-111.805&z=9&label1=callsign&label2=altitude&airports=1"
+        style="width:100%; height:100%; border:none; border-radius:12px;"
+        allow="fullscreen"
+        loading="lazy"
+      ></iframe>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-text">BRAVO 6 FLIGHT ACADEMY &bull; REXBURG (KRXE)</div>
+    <div class="refresh-indicator" id="refresh-status">
+      <div class="refresh-dot"></div>
+      <span id="refresh-text">Auto-refresh every 5 min</span>
+    </div>
+    <div class="footer-text">Weather: aviationweather.gov &bull; Traffic: FlightRadar24 &bull; For briefing purposes only</div>
+  </div>
+
+</div>
+
+<script>
+  // ── Clock ──
+  function updateClock() {
+    const now = new Date();
+    const z = now.toISOString().slice(11, 19);
+    document.getElementById('clock').textContent = z.replace(/:/g, ':');
+
+    const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
+    document.getElementById('date-display').textContent = now.toLocaleDateString('en-US', opts) + ' UTC';
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // ── METAR Parsing ──
+  function parseMetar(raw) {
+    const result = {
+      wind: '---',
+      windDir: 0,
+      visibility: '---',
+      ceiling: '---',
+      ceilingFt: Infinity,
+      visMiles: Infinity,
+      temp: '---',
+      raw: raw
+    };
+
+    if (!raw) return result;
+
+    // Wind
+    const windMatch = raw.match(/\b(\d{3}|VRB)(\d{2,3})(G(\d{2,3}))?KT\b/);
+    if (windMatch) {
+      const dir = windMatch[1];
+      const spd = parseInt(windMatch[2]);
+      const gust = windMatch[4] ? parseInt(windMatch[4]) : null;
+      result.windDir = dir === 'VRB' ? 0 : parseInt(dir);
+      if (dir === '000' && spd === 0) {
+        result.wind = 'CALM';
+      } else if (gust) {
+        result.wind = `${dir}° ${spd}G${gust}`;
+      } else {
+        result.wind = `${dir}° ${spd}kt`;
+      }
+    }
+
+    // Calm wind
+    if (raw.includes('00000KT')) {
+      result.wind = 'CALM';
+    }
+
+    // Visibility
+    const visMatch = raw.match(/\s(\d+)\s?SM\b/) || raw.match(/\s(\d+)\s+(\d+\/\d+)SM\b/) || raw.match(/\s(\d+\/\d+)SM\b/);
+    if (visMatch) {
+      if (visMatch[2]) {
+        // Mixed number like "1 1/2SM"
+        const whole = parseInt(visMatch[1]);
+        const frac = visMatch[2].split('/');
+        result.visMiles = whole + parseInt(frac[0]) / parseInt(frac[1]);
+        result.visibility = `${visMatch[1]} ${visMatch[2]}`;
+      } else if (visMatch[1].includes('/')) {
+        const frac = visMatch[1].split('/');
+        result.visMiles = parseInt(frac[0]) / parseInt(frac[1]);
+        result.visibility = visMatch[1];
+      } else {
+        result.visMiles = parseInt(visMatch[1]);
+        result.visibility = visMatch[1];
+      }
+      result.visibility += ' <span class="metric-unit">SM</span>';
+    }
+
+    // Ceiling — look for BKN or OVC
+    const cloudMatches = [...raw.matchAll(/(BKN|OVC|VV)(\d{3})/g)];
+    if (cloudMatches.length > 0) {
+      let lowestCeiling = Infinity;
+      let lowestType = '';
+      cloudMatches.forEach(m => {
+        const alt = parseInt(m[2]) * 100;
+        if (alt < lowestCeiling) {
+          lowestCeiling = alt;
+          lowestType = m[1];
+        }
+      });
+      result.ceilingFt = lowestCeiling;
+      if (lowestCeiling >= 10000) {
+        result.ceiling = (lowestCeiling / 1000).toFixed(0) + 'k';
+      } else {
+        result.ceiling = lowestCeiling.toLocaleString();
+      }
+      result.ceiling += ` <span class="metric-unit">ft ${lowestType}</span>`;
+    } else if (raw.match(/\b(CLR|SKC)\b/)) {
+      result.ceiling = 'CLR';
+      result.ceilingFt = Infinity;
+    } else if (raw.match(/\bFEW\d{3}\b/) || raw.match(/\bSCT\d{3}\b/)) {
+      result.ceiling = 'CLR';
+      result.ceilingFt = Infinity;
+    }
+
+    // Temp / Dewpoint
+    const tempMatch = raw.match(/\s(M?\d{2})\/(M?\d{2})\s/);
+    if (tempMatch) {
+      const t = tempMatch[1].replace('M', '-');
+      const d = tempMatch[2].replace('M', '-');
+      result.temp = `${t}/${d} <span class="metric-unit">°C</span>`;
+    }
+
+    return result;
+  }
+
+  function getFlightCategory(ceilingFt, visMiles) {
+    if (ceilingFt < 500 || visMiles < 1) return 'LIFR';
+    if (ceilingFt < 1000 || visMiles < 3) return 'IFR';
+    if (ceilingFt <= 3000 || visMiles <= 5) return 'MVFR';
+    return 'VFR';
+  }
+
+  function getCatClass(cat) {
+    return 'cat-' + cat.toLowerCase();
+  }
+
+  // ── Fetch Weather Data ──
+  async function fetchWeather(station) {
+    const metarUrl = `https://aviationweather.gov/api/data/metar?ids=${station}&format=raw`;
+    const tafUrl = `https://aviationweather.gov/api/data/taf?ids=${station}&format=raw`;
+
+    let metarRaw = '', tafRaw = '';
+    try {
+      const [metarResp, tafResp] = await Promise.all([
+        fetch(metarUrl),
+        fetch(tafUrl)
+      ]);
+      if (metarResp.ok) metarRaw = (await metarResp.text()).trim();
+      if (tafResp.ok) tafRaw = (await tafResp.text()).trim();
+    } catch (e) {
+      console.error(`Error fetching ${station}:`, e);
+    }
+    return { metarRaw, tafRaw };
+  }
+
+  async function updateStation(station) {
+    const id = station.toLowerCase();
+    const loadingEl = document.getElementById(`loading-${id}`);
+
+    try {
+      const { metarRaw, tafRaw } = await fetchWeather(station);
+
+      if (!metarRaw) {
+        if (loadingEl) loadingEl.style.display = 'none';
+        document.getElementById(`metar-${id}`).textContent = 'No METAR data available — will retry in 5 minutes';
+        return;
+      }
+
+      const parsed = parseMetar(metarRaw);
+      const cat = getFlightCategory(parsed.ceilingFt, parsed.visMiles);
+
+      // Update category badge
+      const catEl = document.getElementById(`cat-${id}`);
+      catEl.textContent = cat;
+      catEl.className = `flight-category ${getCatClass(cat)}`;
+
+      // Update metrics
+      document.getElementById(`wind-${id}`).innerHTML = parsed.wind;
+      document.getElementById(`vis-${id}`).innerHTML = parsed.visibility;
+      document.getElementById(`ceil-${id}`).innerHTML = parsed.ceiling;
+      document.getElementById(`temp-${id}`).innerHTML = parsed.temp;
+
+      // Raw text
+      document.getElementById(`metar-${id}`).textContent = metarRaw || 'No METAR available';
+      document.getElementById(`taf-${id}`).textContent = tafRaw || 'No TAF available for this station';
+
+      // Obs time
+      const obsMatch = metarRaw.match(/\d{6}Z/);
+      if (obsMatch) {
+        const day = obsMatch[0].slice(0, 2);
+        const hr = obsMatch[0].slice(2, 4);
+        const mn = obsMatch[0].slice(4, 6);
+        document.getElementById(`obs-${id}`).textContent = `Observed: ${day}th at ${hr}:${mn}Z`;
+      }
+
+      if (loadingEl) loadingEl.style.display = 'none';
+
+    } catch (e) {
+      console.error(`Update failed for ${station}:`, e);
+      if (loadingEl) loadingEl.style.display = 'none';
+      document.getElementById(`metar-${id}`).textContent = 'Error fetching data — will retry in 5 minutes...';
+    }
+  }
+
+  // ── Init & Auto-refresh ──
+  async function refreshAll() {
+    await updateStation('KRXE');
+    document.getElementById('refresh-text').textContent =
+      `Last refresh: ${new Date().toISOString().slice(11,16)}Z · Next in 5 min`;
+  }
+
+  refreshAll();
+  setInterval(refreshAll, 5 * 60 * 1000); // Refresh every 5 min
+</script>
+</body>
+</html>
