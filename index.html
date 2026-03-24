@@ -56,7 +56,7 @@
   .stat-card-sm { background:var(--card-bg); border:1px solid var(--card-border); border-radius:8px; padding:8px 12px; text-align:center; flex:1; }
   .stat-number-sm { font-family:'Oswald',sans-serif; font-size:26px; font-weight:700; line-height:1; }
   .stat-label-sm { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--gray); font-weight:600; margin-top:2px; }
-  .events-list { display:flex; flex-direction:column; gap:7px; overflow:hidden; }
+  .events-list { display:flex; flex-direction:column; gap:7px; overflow:hidden; flex-shrink:0; }
   .event-item { background:rgba(10,25,41,0.5); border:1px solid var(--card-border); border-radius:8px; padding:10px 12px; display:flex; gap:12px; align-items:center; }
   .event-date-box { background:var(--red); border-radius:6px; padding:5px 9px; text-align:center; min-width:46px; }
   .event-month { font-family:'Oswald',sans-serif; font-size:9px; letter-spacing:2px; text-transform:uppercase; font-weight:600; color:rgba(255,255,255,0.8); }
@@ -308,7 +308,7 @@ function renderDisplay() {
   if(d.announcements&&d.announcements.length>1) carouselInterval=setInterval(()=>{ currentSlide=(currentSlide+1)%d.announcements.length; container.querySelectorAll('.announcement-card').forEach((c,i)=>c.classList.toggle('active',i===currentSlide)); dots.querySelectorAll('.dot').forEach((dd,i)=>dd.classList.toggle('active',i===currentSlide)); },8000);
 
   document.getElementById('stats-row').innerHTML=(d.stats||[]).map(s=>`<div class="stat-card-sm"><div class="stat-number-sm">${escHtml(s.number)}</div><div class="stat-label-sm">${escHtml(s.label)}</div></div>`).join('');
-  document.getElementById('events-list').innerHTML=(d.events||[]).map(e=>`<div class="event-item"><div class="event-date-box"><div class="event-month">${escHtml(e.month)}</div><div class="event-day">${escHtml(e.day)}</div></div><div><div class="event-title">${escHtml(e.title)}</div><div class="event-detail">${escHtml(e.detail)}</div></div></div>`).join('');
+  document.getElementById('events-list').innerHTML=(d.events||[]).slice(0,3).map(e=>`<div class="event-item"><div class="event-date-box"><div class="event-month">${escHtml(e.month)}</div><div class="event-day">${escHtml(e.day)}</div></div><div><div class="event-title">${escHtml(e.title)}</div><div class="event-detail">${escHtml(e.detail)}</div></div></div>`).join('');
 
   const congratsTrack=document.getElementById('congrats-track');
   const items=d.congrats||[];
