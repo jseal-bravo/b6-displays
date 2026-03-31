@@ -141,7 +141,7 @@
   .stations-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
     gap: 14px;
     flex: 1;
     min-height: 0;
@@ -428,7 +428,7 @@
     </div>
 
     <!-- Live Traffic (spans both rows) -->
-    <div class="station-panel" id="panel-traffic" style="padding:0; overflow:hidden; grid-row: 1 / 3;">
+    <div class="station-panel" id="panel-traffic" style="padding:0; overflow:hidden; grid-row: 1 / 4;">
       <div class="station-header" style="padding:16px 20px 10px; position:absolute; top:0; left:0; right:0; z-index:5; background:linear-gradient(180deg, rgba(10,25,41,0.95) 0%, rgba(10,25,41,0.7) 70%, transparent 100%);">
         <div>
           <div class="station-id">LIVE TRAFFIC</div>
@@ -479,11 +479,46 @@
         <div class="raw-text" id="taf-kida">Fetching data...</div>
       </div>
     </div>
+
+    <!-- KPIH -->
+    <div class="station-panel" id="panel-kpih">
+      <div class="loading-overlay" id="loading-kpih"><div class="spinner"></div></div>
+      <div class="station-header">
+        <div>
+          <div class="station-id">KPIH</div>
+          <div class="station-name">Pocatello, Idaho — Regional Airport</div>
+        </div>
+        <div class="flight-category cat-unknown" id="cat-kpih">---</div>
+      </div>
+      <div class="metrics-grid" id="metrics-kpih">
+        <div class="metric-card">
+          <div class="metric-label">Wind</div>
+          <div class="metric-value" id="wind-kpih">---</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Visibility</div>
+          <div class="metric-value" id="vis-kpih">---</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Ceiling</div>
+          <div class="metric-value" id="ceil-kpih">---</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Temp / Dew</div>
+          <div class="metric-value" id="temp-kpih">---</div>
+        </div>
+      </div>
+      <div class="obs-time" id="obs-kpih"></div>
+      <div class="raw-section">
+        <div class="raw-label">METAR</div>
+        <div class="raw-text" id="metar-kpih">Fetching data...</div>
+      </div>
+    </div>
   </div>
 
   <!-- Footer -->
   <div class="footer">
-    <div class="footer-text">BRAVO 6 FLIGHT ACADEMY &bull; KRXE / KIDA</div>
+    <div class="footer-text">BRAVO 6 FLIGHT ACADEMY &bull; KRXE / KIDA / KPIH</div>
     <div class="refresh-indicator" id="refresh-status">
       <div class="refresh-dot"></div>
       <span id="refresh-text">Auto-refresh every 5 min</span>
@@ -681,7 +716,7 @@
 
   // ── Init & Auto-refresh ──
   async function refreshAll() {
-    await Promise.all([updateStation('KRXE'), updateStation('KIDA')]);
+    await Promise.all([updateStation('KRXE'), updateStation('KIDA'), updateStation('KPIH')]);
     document.getElementById('refresh-text').textContent =
       `Last refresh: ${new Date().toISOString().slice(11,16)}Z · Next in 5 min`;
   }
