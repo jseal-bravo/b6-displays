@@ -135,6 +135,10 @@
   .admin-sm-btn:hover { color:var(--white); border-color:var(--blue); }
   .admin-sm-btn.danger { color:var(--red-bright); border-color:var(--red-bright); }
   .admin-sm-btn.danger:hover { background:rgba(200,16,46,0.15); }
+  .move-btn { font-size:16px; background:transparent; color:var(--gray); border:1px solid var(--card-border); border-radius:4px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; line-height:1; }
+  .move-btn:hover { color:var(--white); border-color:var(--blue); background:rgba(74,123,174,0.15); }
+  .move-btn:disabled { opacity:0.2; cursor:not-allowed; }
+  .move-btn:disabled:hover { color:var(--gray); border-color:var(--card-border); background:transparent; }
   .img-preview { margin-top:8px; border-radius:8px; overflow:hidden; height:120px; background:var(--bg-dark); }
   .img-preview img { width:100%; height:100%; object-fit:cover; opacity:0.85; }
   .img-preview-sm { margin-top:4px; width:52px; height:52px; border-radius:50%; overflow:hidden; background:var(--bg-dark); border:2px solid var(--gold); }
@@ -419,7 +423,7 @@ function renderAdminCongrats() {
   el.innerHTML=`<div class="top-bar"><div class="admin-section-title">Student Milestones (${items.length})</div><button class="admin-add-btn" onclick="addItem('congrats',{student_name:'',milestone:'solo',detail:'',milestone_date:'',photo_url:'',sort_order:0,is_active:true},'start')">+ Add Student</button></div>
   <p style="color:var(--gray);font-size:13px;margin-bottom:16px">Add students who hit milestones. These scroll on the lobby TV.</p>
   ${items.map((c,i)=>{const m=MILESTONE_MAP[c.milestone]||MILESTONE_MAP.solo;return`<div class="admin-card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div class="admin-card-num">#${i+1} <span style="color:${c.milestone==='solo'?'var(--blue-light)':c.milestone==='graduation'?'var(--gold)':'var(--green)'};margin-left:8px">${m.icon} ${m.label}</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><button class="move-btn" onclick="moveItem('congrats',${i},${i-1})" ${i===0?'disabled':''}>&uarr;</button><button class="move-btn" onclick="moveItem('congrats',${i},${i+1})" ${i===items.length-1?'disabled':''}>&darr;</button><div class="admin-card-num">#${i+1} <span style="color:${c.milestone==='solo'?'var(--blue-light)':c.milestone==='graduation'?'var(--gold)':'var(--green)'};margin-left:8px">${m.icon} ${m.label}</span></div></div>
     <button class="admin-sm-btn danger" onclick="removeItem('congrats',${i},'display_congrats','${c.id}')">Remove</button></div>
     <div class="admin-field-row">
       <div class="admin-field-full"><label class="admin-label">Student Name</label><input class="admin-input" value="${escHtml(c.student_name)}" oninput="boardData.congrats[${i}].student_name=this.value"></div>
@@ -567,10 +571,22 @@ async function uploadImage(inputId, btnId, folder) {
   fileInput.click();
 }
 
+function moveItem(key, from, to) {
+  const arr = boardData[key];
+  if (to < 0 || to >= arr.length) return;
+  const item = arr.splice(from, 1)[0];
+  arr.splice(to, 0, item);
+  // Update sort_order for all items
+  arr.forEach((it, i) => it.sort_order = i);
+  renderAllAdmin();
+}
+
 function addItem(key, defaults, position='end') {
   const newItem={...defaults, _isNew:true, id:crypto.randomUUID()};
   if(position==='start') boardData[key].unshift(newItem);
   else boardData[key].push(newItem);
+  // Renumber sort_order
+  boardData[key].forEach((it, i) => it.sort_order = i);
   renderAllAdmin();
 }
 
