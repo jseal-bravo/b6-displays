@@ -58,9 +58,11 @@ serve(async (req) => {
     const items = allItems.filter((b: any) => {
       const status = (b.reservationStatus ?? '').toLowerCase().replace(/\s+/g, '_');
       if (excluded.has(status)) return false;
-      // Ensure it falls within today (in case API ignores date params)
       const start = new Date(b.start);
-      return start >= todayStart && start <= todayEnd;
+      if (start < todayStart || start > todayEnd) return false;
+      // Only show current and upcoming — drop flights that already ended
+      const end = new Date(b.end ?? b.start);
+      return end >= now;
     });
 
     // Sort by start time
