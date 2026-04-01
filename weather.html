@@ -533,6 +533,40 @@
     text-overflow: ellipsis;
   }
 
+  .schedule-day-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+  }
+
+  .schedule-day-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--blue-light);
+    white-space: nowrap;
+  }
+
+  .schedule-day-line {
+    flex: 1;
+    height: 1px;
+    background: var(--card-border);
+  }
+
+  .schedule-day-count {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    color: var(--gray);
+    letter-spacing: 1px;
+  }
+
+  .schedule-item.tomorrow {
+    opacity: 0.7;
+  }
+
   .schedule-empty {
     flex: 1;
     display: flex;
@@ -992,26 +1026,43 @@
     if (!items || items.length === 0) {
       list.innerHTML = `<div class="schedule-empty">
         <div class="schedule-empty-icon">✈</div>
-        <div class="schedule-empty-text">No flights scheduled today</div>
+        <div class="schedule-empty-text">No flights scheduled</div>
       </div>`;
       if (count) count.textContent = '0 flights';
       return;
     }
 
+    const todayCount = items.filter(f => f.day === 'today').length;
+    const tomorrowCount = items.filter(f => f.day === 'tomorrow').length;
     if (count) count.textContent = `${items.length} flight${items.length !== 1 ? 's' : ''}`;
 
-    list.innerHTML = items.map(f => `
-      <div class="schedule-item${f.is_current ? ' flying' : ''}">
-        <div class="schedule-time-box">
-          <div class="schedule-time">${f.time.replace(' ', '\n')}</div>
-        </div>
-        <div class="schedule-tail">${f.tail}</div>
-        <div class="schedule-people">
-          <div class="schedule-student">${f.student || '—'}</div>
-          <div class="schedule-instructor">${f.instructor ? '&#9992; ' + f.instructor : ''}</div>
-        </div>
-      </div>
-    `).join('');
+    // Build HTML with day separators
+    let html = '';
+    let currentDay = '';
+    for (const f of items) {
+      if (f.day !== currentDay) {
+        currentDay = f.day;
+        const label = f.day === 'today' ? 'Today' : 'Tomorrow';
+        const dayCount = f.day === 'today' ? todayCount : tomorrowCount;
+        html += `<div class="schedule-day-header">
+          <span class="schedule-day-label">${label}</span>
+          <span class="schedule-day-line"></span>
+          <span class="schedule-day-count">${dayCount}</span>
+        </div>`;
+      }
+      html += `
+        <div class="schedule-item${f.is_current ? ' flying' : ''}${f.day === 'tomorrow' ? ' tomorrow' : ''}">
+          <div class="schedule-time-box">
+            <div class="schedule-time">${f.time.replace(' ', '\n')}</div>
+          </div>
+          <div class="schedule-tail">${f.tail}</div>
+          <div class="schedule-people">
+            <div class="schedule-student">${f.student || '—'}</div>
+            <div class="schedule-instructor">${f.instructor ? '&#9992; ' + f.instructor : ''}</div>
+          </div>
+        </div>`;
+    }
+    list.innerHTML = html;
   }
 
   // ── Panel rotation ──

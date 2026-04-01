@@ -24,6 +24,11 @@ serve(async (req) => {
     const [mm, dd, yyyy] = mtDate.split('/');
     const todayStart = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
     const todayEnd   = new Date(`${yyyy}-${mm}-${dd}T23:59:59`);
+    // Tomorrow range
+    const tomorrow = new Date(todayStart);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowEnd = new Date(tomorrow);
+    tomorrowEnd.setHours(23, 59, 59);
 
     // Fetch aircraft list (for tail numbers)
     const aircraftResp = await fetch(
@@ -53,19 +58,37 @@ serve(async (req) => {
       offset += pageSize;
     }
 
-    // Filter to today (Mountain Time) and exclude cancelled/no-show
+    // Filter: exclude cancelled/no-show and dispatcher entries
     const excluded = new Set(['cancelled', 'no_show', 'no show']);
-    const items = allItems.filter((b: any) => {
+    function isValid(b: any) {
       const status = (b.reservationStatus ?? '').toLowerCase().replace(/\s+/g, '_');
       if (excluded.has(status)) return false;
+      // Skip dispatcher bookings (onboarding/tours, not training)
+      const instr = (b.instructor ?? '').toLowerCase();
+      if (instr.includes('dispatcher')) return false;
+      return true;
+    }
+
+    // Today: current and upcoming only
+    const todayItems = allItems.filter((b: any) => {
+      if (!isValid(b)) return false;
       const start = new Date(b.start);
       if (start < todayStart || start > todayEnd) return false;
-      // Only show current and upcoming — drop flights that already ended
       const end = new Date(b.end ?? b.start);
       return end >= now;
     });
 
-    // Sort by start time
+    // Tomorrow: all valid flights (shown when today is nearly done)
+    const tomorrowItems = allItems.filter((b: any) => {
+      if (!isValid(b)) return false;
+      const start = new Date(b.start);
+      return start >= tomorrow && start <= tomorrowEnd;
+    });
+
+    // Combine: always show today, add tomorrow if 3 or fewer today remain
+    const showTomorrow = todayItems.length <= 3;
+    const items = showTomorrow ? [...todayItems, ...tomorrowItems] : todayItems;
+
     items.sort((a: any, b: any) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
     // Format for display
@@ -97,7 +120,12 @@ serve(async (req) => {
 
       const tail = tailMap[b.aircraftId] ?? b.aircraftId ?? '—';
 
-      return { time, tail, student, instructor, status, is_current: isCurrent };
+      // Day label for section headers
+      const startDate = new Date(b.start);
+      const isToday = startDate >= todayStart && startDate <= todayEnd;
+      const day = isToday ? 'today' : 'tomorrow';
+
+      return { time, tail, student, instructor, status, is_current: isCurrent, day };
     });
 
     return new Response(JSON.stringify(formatted), {
