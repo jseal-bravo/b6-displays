@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bravo 6 Flight Academy — Maintenance Board</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;600;700&display=swap');
+
+  :root {
+    --navy: #0D2B4E;
+    --navy-mid: #1C3F6D;
+    --blue: #4A7BAE;
+    --blue-light: #6B9FD4;
+    --red: #C8102E;
+    --red-bright: #E31E24;
+    --white: #F0F4F8;
+    --gray-light: #D1DAE6;
+    --gray: #8899AA;
+    --green: #2ECC71;
+    --yellow: #F1C40F;
+    --orange: #E67E22;
+    --bg-dark: #0A1929;
+    --card-bg: rgba(28, 63, 109, 0.45);
+    --card-border: rgba(74, 123, 174, 0.25);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: var(--bg-dark);
+    color: var(--white);
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(74,123,174,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(200,16,46,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(28,63,109,0.15) 0%, transparent 60%);
+    z-index: 0;
+  }
+
+  .dashboard {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 16px 28px 10px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--card-border);
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .logo-container {
+    width: 180px;
+    height: 62px;
+    display: flex;
+    align-items: center;
+  }
+
+  .logo-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .header-divider {
+    width: 2px;
+    height: 44px;
+    background: var(--red);
+  }
+
+  .header-title {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--white);
+  }
+
+  .header-title span {
+    color: var(--blue-light);
+    font-weight: 400;
+  }
+
+  .header-right {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+
+  .clock {
+    font-family: 'Oswald', sans-serif;
+    font-size: 42px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+
+  .clock-label {
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gray);
+    font-weight: 600;
+  }
+
+  .date-display {
+    font-size: 14px;
+    color: var(--gray);
+    letter-spacing: 1px;
+  }
+
+  /* Summary bar */
+  .summary-bar {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .summary-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    backdrop-filter: blur(10px);
+  }
+
+  .summary-number {
+    font-family: 'Oswald', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .summary-number.open { color: var(--red-bright); }
+  .summary-number.grounded { color: var(--orange); }
+  .summary-number.resolved { color: var(--green); }
+
+  .summary-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gray);
+    font-weight: 600;
+  }
+
+  /* Aircraft grid */
+  .aircraft-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 14px;
+    overflow-y: auto;
+    min-height: 0;
+    scrollbar-width: none;
+    padding-bottom: 8px;
+  }
+
+  .aircraft-grid::-webkit-scrollbar { display: none; }
+
+  .aircraft-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .aircraft-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--red), var(--red-bright), var(--red));
+  }
+
+  .aircraft-card.has-groundable::before {
+    background: linear-gradient(90deg, var(--orange), var(--yellow), var(--orange));
+  }
+
+  .aircraft-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .aircraft-tail {
+    font-family: 'Oswald', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--white);
+  }
+
+  .aircraft-type {
+    font-size: 12px;
+    color: var(--gray);
+    letter-spacing: 1px;
+  }
+
+  .squawk-count-badge {
+    font-family: 'Oswald', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    padding: 4px 12px;
+    border-radius: 6px;
+    background: rgba(200, 16, 46, 0.2);
+    color: var(--red-bright);
+    border: 1px solid rgba(200, 16, 46, 0.4);
+  }
+
+  .squawk-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .squawk-item {
+    background: rgba(10, 25, 41, 0.5);
+    border: 1px solid var(--card-border);
+    border-left: 3px solid var(--blue);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+
+  .squawk-item.groundable {
+    border-left-color: var(--orange);
+    background: rgba(230, 126, 34, 0.06);
+  }
+
+  .squawk-desc {
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--gray-light);
+    margin-bottom: 6px;
+  }
+
+  .squawk-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--gray);
+  }
+
+  .squawk-reporter { letter-spacing: 1px; }
+
+  .squawk-date {
+    font-family: 'Oswald', sans-serif;
+    letter-spacing: 1px;
+  }
+
+  .groundable-tag {
+    font-family: 'Oswald', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--orange);
+    background: rgba(230, 126, 34, 0.15);
+    border: 1px solid rgba(230, 126, 34, 0.3);
+    border-radius: 4px;
+    padding: 2px 8px;
+  }
+
+  .squawk-status {
+    font-size: 11px;
+    color: var(--gray);
+    font-style: italic;
+    margin-top: 4px;
+  }
+
+  /* Resolved section */
+  .resolved-section {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--card-border);
+  }
+
+  .resolved-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--green);
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .resolved-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(46, 204, 113, 0.2);
+  }
+
+  .resolved-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .resolved-item {
+    background: rgba(46, 204, 113, 0.06);
+    border: 1px solid rgba(46, 204, 113, 0.15);
+    border-radius: 8px;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .resolved-check {
+    color: var(--green);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .resolved-tail {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: var(--white);
+  }
+
+  .resolved-desc {
+    color: var(--gray-light);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px;
+  }
+
+  .resolved-date {
+    font-size: 11px;
+    color: var(--gray);
+    white-space: nowrap;
+  }
+
+  /* Empty state */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray);
+    gap: 12px;
+  }
+
+  .empty-icon { font-size: 48px; opacity: 0.3; }
+  .empty-text {
+    font-family: 'Oswald', sans-serif;
+    font-size: 18px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  /* Footer */
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid var(--card-border);
+  }
+
+  .footer-text {
+    font-size: 12px;
+    color: var(--gray);
+    letter-spacing: 1px;
+  }
+
+  .refresh-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--gray);
+  }
+
+  .refresh-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Loading */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 25, 41, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+
+  .spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid var(--card-border);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="dashboard">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo-container">
+        <img src="https://bravo6flightacademy.com/wp-content/uploads/2023/04/Logo-Bravo-6.png" alt="Bravo 6 Flight Academy">
+      </div>
+      <div class="header-divider"></div>
+      <div class="header-title">Maintenance <span>Board</span></div>
+    </div>
+    <div class="header-right">
+      <div class="clock" id="clock">00:00</div>
+      <div class="clock-label">Mountain Time</div>
+      <div class="date-display" id="date-display"></div>
+    </div>
+  </div>
+
+  <!-- Summary bar -->
+  <div class="summary-bar" id="summary-bar">
+    <div class="summary-card">
+      <div class="summary-number open" id="count-open">—</div>
+      <div class="summary-label">Open<br>Squawks</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-number grounded" id="count-groundable">—</div>
+      <div class="summary-label">Groundable<br>Items</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-number resolved" id="count-resolved">—</div>
+      <div class="summary-label">Resolved<br>This Week</div>
+    </div>
+  </div>
+
+  <!-- Aircraft cards -->
+  <div class="aircraft-grid" id="aircraft-grid">
+    <div class="loading-overlay" id="loading"><div class="spinner"></div></div>
+  </div>
+
+  <!-- Resolved section -->
+  <div class="resolved-section" id="resolved-section" style="display:none">
+    <div class="resolved-label">Recently Resolved (Last 7 Days)</div>
+    <div class="resolved-list" id="resolved-list"></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-text">BRAVO 6 FLIGHT ACADEMY &bull; MAINTENANCE</div>
+    <div class="refresh-indicator">
+      <div class="refresh-dot"></div>
+      <span id="refresh-text">Auto-refresh every 5 min</span>
+    </div>
+    <div class="footer-text">Source: FlightSchedulePro &bull; For internal use only</div>
+  </div>
+
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://jdaxaniygkvimcdnaurm.supabase.co';
+
+  // ── Clock ──
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', {
+      timeZone: 'America/Boise', hour: '2-digit', minute: '2-digit', hour12: true
+    });
+    document.getElementById('date-display').textContent = now.toLocaleDateString('en-US', {
+      timeZone: 'America/Boise', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+    });
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // ── Helpers ──
+  function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+  }
+
+  function formatDate(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    return d.toLocaleDateString('en-US', {
+      timeZone: 'America/Boise', month: 'short', day: 'numeric'
+    });
+  }
+
+  function extractTail(aircraft) {
+    // "Cessna 172 G N4295L" → tail is last word starting with N
+    const parts = (aircraft || '').split(' ');
+    const tail = parts.find(p => /^N\d/.test(p)) || parts[parts.length - 1] || '—';
+    const type = parts.filter(p => p !== tail).join(' ');
+    return { tail, type };
+  }
+
+  // ── Fetch & Render ──
+  async function fetchSquawks() {
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/get-squawks`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      renderBoard(data);
+    } catch (e) {
+      console.error('Squawk fetch error:', e);
+    }
+  }
+
+  function renderBoard(data) {
+    const grid = document.getElementById('aircraft-grid');
+    const loading = document.getElementById('loading');
+    if (loading) loading.remove();
+
+    // Summary counts
+    const groundableCount = data.aircraft.reduce((sum, ac) =>
+      sum + ac.squawks.filter(s => s.groundable).length, 0);
+    document.getElementById('count-open').textContent = data.total_open;
+    document.getElementById('count-groundable').textContent = groundableCount;
+    document.getElementById('count-resolved').textContent = data.total_resolved_7d;
+
+    // Aircraft cards
+    if (data.aircraft.length === 0) {
+      grid.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">✈</div>
+        <div class="empty-text">No open squawks</div>
+        <div style="color:var(--gray);font-size:14px">All aircraft are clear</div>
+      </div>`;
+    } else {
+      grid.innerHTML = data.aircraft.map(ac => {
+        const { tail, type } = extractTail(ac.aircraft);
+        const hasGroundable = ac.squawks.some(s => s.groundable);
+        return `<div class="aircraft-card${hasGroundable ? ' has-groundable' : ''}">
+          <div class="aircraft-header">
+            <div>
+              <div class="aircraft-tail">${escHtml(tail)}</div>
+              <div class="aircraft-type">${escHtml(type)}</div>
+            </div>
+            <div class="squawk-count-badge">${ac.squawks.length} OPEN</div>
+          </div>
+          <div class="squawk-list">
+            ${ac.squawks.map(sq => `<div class="squawk-item${sq.groundable ? ' groundable' : ''}">
+              <div class="squawk-desc">${escHtml(sq.description)}</div>
+              <div class="squawk-meta">
+                <div class="squawk-reporter">${escHtml(sq.reported_by)}</div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  ${sq.groundable ? '<span class="groundable-tag">GROUNDABLE</span>' : ''}
+                  <div class="squawk-date">${formatDate(sq.reported_date)}</div>
+                </div>
+              </div>
+              ${sq.status ? `<div class="squawk-status">${escHtml(sq.status)}</div>` : ''}
+            </div>`).join('')}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // Resolved section
+    const resolvedSection = document.getElementById('resolved-section');
+    const resolvedList = document.getElementById('resolved-list');
+    if (data.resolved && data.resolved.length > 0) {
+      resolvedSection.style.display = '';
+      resolvedList.innerHTML = data.resolved.map(r => {
+        const { tail } = extractTail(r.aircraft);
+        return `<div class="resolved-item">
+          <div class="resolved-check">✓</div>
+          <div class="resolved-tail">${escHtml(tail)}</div>
+          <div class="resolved-desc">${escHtml(r.description)}</div>
+          <div class="resolved-date">${formatDate(r.resolved_date)}</div>
+        </div>`;
+      }).join('');
+    } else {
+      resolvedSection.style.display = 'none';
+    }
+  }
+
+  // ── Init & Auto-refresh ──
+  async function refreshAll() {
+    await fetchSquawks();
+    document.getElementById('refresh-text').textContent =
+      `Last refresh: ${new Date().toLocaleTimeString('en-US', {
+        timeZone: 'America/Boise', hour: 'numeric', minute: '2-digit', hour12: true
+      })} · Next in 5 min`;
+  }
+
+  refreshAll();
+  setInterval(refreshAll, 5 * 60 * 1000);
+</script>
+</body>
+</html>
