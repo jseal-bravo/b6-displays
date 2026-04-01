@@ -33,25 +33,25 @@ serve(async (req) => {
     const aircraftData = aircraftResp.ok ? await aircraftResp.json() : { items: [] };
     const tailMap: Record<string, string> = {};
     for (const a of (aircraftData.items ?? [])) {
-      if (a.aircraftId && a.tailNumber) tailMap[a.aircraftId] = a.tailNumber;
+      if (a.aircraftId && a.registrationTail) tailMap[a.aircraftId] = a.registrationTail;
     }
 
-    // Fetch today's reservations (try with date params, fallback to filtering)
-    const params = new URLSearchParams({
-      limit: '200',
-      offset: '0',
-      startDate: `${yyyy}-${mm}-${dd}`,
-      endDate: `${yyyy}-${mm}-${dd}`,
-    });
-    const resResp = await fetch(
-      `${FSP_BASE}/operators/${OPERATOR}/reservations?${params}`,
-      { headers: { 'x-subscription-key': FSP_KEY } }
-    );
-    if (!resResp.ok) {
-      throw new Error(`FSP API error: ${resResp.status}`);
+    // Fetch ALL reservations (FSP ignores date params, so paginate through everything)
+    let allItems: any[] = [];
+    let offset = 0;
+    const pageSize = 500;
+    while (true) {
+      const resResp = await fetch(
+        `${FSP_BASE}/operators/${OPERATOR}/reservations?limit=${pageSize}&offset=${offset}`,
+        { headers: { 'x-subscription-key': FSP_KEY } }
+      );
+      if (!resResp.ok) throw new Error(`FSP API error: ${resResp.status}`);
+      const resData = await resResp.json();
+      const items = resData.items ?? [];
+      allItems = allItems.concat(items);
+      if (items.length < pageSize) break;
+      offset += pageSize;
     }
-    const resData = await resResp.json();
-    const allItems: any[] = resData.items ?? [];
 
     // Filter to today (Mountain Time) and exclude cancelled/no-show
     const excluded = new Set(['cancelled', 'no_show', 'no show']);
@@ -79,11 +79,11 @@ serve(async (req) => {
         hour: 'numeric', minute: '2-digit', hour12: true
       }).format(start);
 
-      // Student: last name + first initial, or full name if short
-      const rawStudent = b.customer ?? b.customerName ?? '';
+      // Student: first name + last initial
+      const rawStudent = b.customerLabel1Name ?? b.customer ?? b.customerName ?? '';
       const studentParts = rawStudent.trim().split(/\s+/);
       const student = studentParts.length >= 2
-        ? `${studentParts[studentParts.length - 1]}, ${studentParts[0][0]}.`
+        ? `${studentParts[0]} ${studentParts[studentParts.length - 1][0]}.`
         : rawStudent;
 
       // Instructor: last name only
