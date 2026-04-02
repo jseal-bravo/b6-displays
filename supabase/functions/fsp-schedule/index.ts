@@ -22,13 +22,25 @@ serve(async (req) => {
     }).format(now);
     // mtDate is MM/DD/YYYY
     const [mm, dd, yyyy] = mtDate.split('/');
-    const todayStart = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
-    const todayEnd   = new Date(`${yyyy}-${mm}-${dd}T23:59:59`);
-    // Tomorrow range
+
+    // Determine current Mountain Time offset (MST=-07:00, MDT=-06:00)
+    // by comparing UTC hour with Mountain hour
+    const utcHour = now.getUTCHours();
+    const mtHour = parseInt(new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Denver', hour: 'numeric', hour12: false
+    }).format(now));
+    let mtOffset = mtHour - utcHour;
+    if (mtOffset > 12) mtOffset -= 24;
+    if (mtOffset < -12) mtOffset += 24;
+    const offsetStr = `${mtOffset < 0 ? '-' : '+'}${String(Math.abs(mtOffset)).padStart(2,'0')}:00`;
+
+    // FSP stores times in local Mountain Time — append offset so JS parses correctly
+    const todayStart = new Date(`${yyyy}-${mm}-${dd}T00:00:00${offsetStr}`);
+    const todayEnd   = new Date(`${yyyy}-${mm}-${dd}T23:59:59${offsetStr}`);
     const tomorrow = new Date(todayStart);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowEnd = new Date(tomorrow);
-    tomorrowEnd.setHours(23, 59, 59);
+    tomorrowEnd.setHours(tomorrowEnd.getHours() + 23, 59, 59);
 
     // Fetch aircraft list (for tail numbers)
     const aircraftResp = await fetch(
@@ -58,6 +70,14 @@ serve(async (req) => {
       offset += pageSize;
     }
 
+    // Helper: parse FSP local time string as Mountain Time
+    function parseFspTime(t: string): Date {
+      // FSP gives "2026-04-01T17:00:00.00" in local Mountain Time
+      // Strip fractional seconds and append offset
+      const clean = t.replace(/\.\d+$/, '');
+      return new Date(`${clean}${offsetStr}`);
+    }
+
     // Filter: exclude cancelled/no-show and dispatcher entries
     const excluded = new Set(['cancelled', 'no_show', 'no show']);
     function isValid(b: any) {
@@ -72,16 +92,16 @@ serve(async (req) => {
     // Today: current and upcoming only
     const todayItems = allItems.filter((b: any) => {
       if (!isValid(b)) return false;
-      const start = new Date(b.start);
+      const start = parseFspTime(b.start);
       if (start < todayStart || start > todayEnd) return false;
-      const end = new Date(b.end ?? b.start);
+      const end = parseFspTime(b.end ?? b.start);
       return end >= now;
     });
 
     // Tomorrow: all valid flights (shown when today is nearly done)
     const tomorrowItems = allItems.filter((b: any) => {
       if (!isValid(b)) return false;
-      const start = new Date(b.start);
+      const start = parseFspTime(b.start);
       return start >= tomorrow && start <= tomorrowEnd;
     });
 
@@ -89,12 +109,12 @@ serve(async (req) => {
     const showTomorrow = todayItems.length <= 3;
     const items = showTomorrow ? [...todayItems, ...tomorrowItems] : todayItems;
 
-    items.sort((a: any, b: any) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    items.sort((a: any, b: any) => parseFspTime(a.start).getTime() - parseFspTime(b.start).getTime());
 
     // Format for display
     const formatted = items.map((b: any) => {
-      const start = new Date(b.start);
-      const end   = new Date(b.end ?? b.start);
+      const start = parseFspTime(b.start);
+      const end   = parseFspTime(b.end ?? b.start);
       const isCurrent = now >= start && now <= end;
       const status = (b.reservationStatus ?? 'Scheduled').toLowerCase().replace(/\s+/g, '_');
 
@@ -121,7 +141,7 @@ serve(async (req) => {
       const tail = tailMap[b.aircraftId] ?? b.aircraftId ?? '—';
 
       // Day label for section headers
-      const startDate = new Date(b.start);
+      const startDate = parseFspTime(b.start);
       const isToday = startDate >= todayStart && startDate <= todayEnd;
       const day = isToday ? 'today' : 'tomorrow';
 
